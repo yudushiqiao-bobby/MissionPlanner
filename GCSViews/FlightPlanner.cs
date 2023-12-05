@@ -5519,34 +5519,67 @@ namespace MissionPlanner.GCSViews
                 return;
             }
 
-
             using (SaveFileDialog sf = new SaveFileDialog())
             {
-                sf.Filter = "Polygon (*.poly)|*.poly";
+                sf.Filter = "Polygon (*.poly)|*.poly|DXF(*.dxf)|*.dxf";
                 var result = sf.ShowDialog();
                 if (sf.FileName != "" && result == DialogResult.OK)
                 {
                     try
                     {
-                        StreamWriter sw = new StreamWriter(sf.OpenFile());
-
-                        sw.WriteLine("#saved by Mission Planner " + Application.ProductVersion);
-
-                        if (drawnpolygon.Points.Count > 0)
+                        if (sf.FilterIndex == 1)
                         {
-                            foreach (var pll in drawnpolygon.Points)
+                            StreamWriter sw = new StreamWriter(sf.OpenFile());
+
+                            sw.WriteLine("#saved by Mission Planner " + Application.ProductVersion);
+
+                            if (drawnpolygon.Points.Count > 0)
                             {
-                                sw.WriteLine(pll.Lat.ToString(CultureInfo.InvariantCulture) + " " +
-                                             pll.Lng.ToString(CultureInfo.InvariantCulture));
+                                foreach (var pll in drawnpolygon.Points)
+                                {
+                                    sw.WriteLine(pll.Lat.ToString(CultureInfo.InvariantCulture) + " " +
+                                                 pll.Lng.ToString(CultureInfo.InvariantCulture));
+                                }
+
+                                PointLatLng pll2 = drawnpolygon.Points[0];
+
+                                sw.WriteLine(pll2.Lat.ToString(CultureInfo.InvariantCulture) + " " +
+                                             pll2.Lng.ToString(CultureInfo.InvariantCulture));
                             }
 
-                            PointLatLng pll2 = drawnpolygon.Points[0];
-
-                            sw.WriteLine(pll2.Lat.ToString(CultureInfo.InvariantCulture) + " " +
-                                         pll2.Lng.ToString(CultureInfo.InvariantCulture));
+                            sw.Close();
                         }
+                        if (sf.FilterIndex == 2)
+                        {
+                            dxf dxf = new dxf();
+                            if (zone != "-99")
+                                dxf.Tag = zone;
+                            dxf.Create();
 
-                        sw.Close();
+                            List<PointF> pointlist = new List<PointF>();
+
+                            if (drawnpolygon.Points.Count > 0)
+                            {
+                                string wgs84wkt = "GEOGCS[\"WGS 84\", DATUM[\"WGS_1984\", SPHEROID[\"WGS 84\", 6378137, 298.257223563, AUTHORITY[\"EPSG\", \"7030\"]], AUTHORITY[\"EPSG\", \"6326\"]], PRIMEM[\"Greenwich\", 0, AUTHORITY[\"EPSG\", \"8901\"]], UNIT[\"degree\", 0.0174532925199433, AUTHORITY[\"EPSG\", \"9122\"]], AUTHORITY[\"EPSG\", \"4326\"]]";
+                                string bj54wkt = "PROJCS[\"Beijing 1954 / 3-degree Gauss-Kruger CM 114E\",GEOGCS[\"Beijing 1954\",DATUM[\"Beijing_1954\",SPHEROID[\"Krassowsky 1940\",6378245,298.3,AUTHORITY[\"EPSG\",\"7024\"]],TOWGS84[15.8,-154.4,-82.3,0,0,0,0],AUTHORITY[\"EPSG\",\"6214\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4214\"]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",0],PARAMETER[\"central_meridian\",114],PARAMETER[\"scale_factor\",1],PARAMETER[\"false_easting\",500000],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AUTHORITY[\"EPSG\",\"2435\"]]";
+
+                                CoordinateSystemFactory coordinateSystemFactory = new CoordinateSystemFactory();
+                                ICoordinateSystem sourceCoordinateSystem = coordinateSystemFactory.CreateFromWkt(wgs84wkt);
+                                ICoordinateSystem targetCoordinateSystem = coordinateSystemFactory.CreateFromWkt(bj54wkt);
+                                ICoordinateTransformation transf = (new CoordinateTransformationFactory()).CreateFromCoordinateSystems(sourceCoordinateSystem, targetCoordinateSystem);
+
+
+                                foreach (var pll in drawnpolygon.Points)
+                                {
+
+                                    double[] p1 = transf.MathTransform.Transform(new double[] { pll.Lng, pll.Lat });
+                                    pointlist.Add(new PointF((float)p1[1], (float)p1[0]));
+                                }
+                            }
+                            dxf.AddPolygon(pointlist.ToArray());
+                            dxf.Save(sf.FileName, false);
+
+                        }
                     }
                     catch
                     {
