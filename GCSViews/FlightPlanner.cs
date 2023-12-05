@@ -5573,7 +5573,7 @@ namespace MissionPlanner.GCSViews
                                 {
 
                                     double[] p1 = transf.MathTransform.Transform(new double[] { pll.Lng, pll.Lat });
-                                    pointlist.Add(new PointF((float)p1[1], (float)p1[0]));
+                                    pointlist.Add(new PointF((float)p1[0], (float)p1[1]));
                                 }
                             }
                             dxf.AddPolygon(pointlist.ToArray());
